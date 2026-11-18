@@ -1,0 +1,416 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- GLOBAL HARDENED HELPERS ---
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (
+          'email_verified' in request.auth.token &&
+          request.auth.token.email_verified == true &&
+          'email' in request.auth.token &&
+          request.auth.token.email == 'skumari86555@gmail.com'
+        )
+      );
+    }
+
+    // --- ENTITY VALIDATION HELPERS ---
+    function isValidUserProfile(data) {
+      return data.userId is string && isValidId(data.userId) &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 100 &&
+             data.email is string && data.email.size() >= 3 && data.email.size() <= 200 &&
+             (!('photoUrl' in data) || (data.photoUrl is string && data.photoUrl.size() <= 500)) &&
+             (data.spendingLimitUsd is int || data.spendingLimitUsd is float) &&
+             data.spendingLimitUsd >= 0.0 && data.spendingLimitUsd <= 10000.0 &&
+             (data.totalSpentUsd is int || data.totalSpentUsd is float) &&
+             data.totalSpentUsd >= 0.0 && data.totalSpentUsd <= 100000.0 &&
+             data.totalVideosCreated is int && data.totalVideosCreated >= 0 && data.totalVideosCreated <= 100000 &&
+             data.defaultAspectRatio is string && data.defaultAspectRatio in ['16:9', '9:16'] &&
+             data.defaultLanguage is string && data.defaultLanguage.size() >= 2 && data.defaultLanguage.size() <= 40 &&
+             data.preferLowCostImageMode is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidVideoProject(data) {
+      return data.userId is string && isValidId(data.userId) &&
+             data.jobId is string && isValidId(data.jobId) &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 200 &&
+             data.topic is string && data.topic.size() >= 3 && data.topic.size() <= 500 &&
+             data.format is string && data.format in ['DOCUMENTARY', 'EDUCATIONAL', 'EXPLAINER', 'STORYTELLING'] &&
+             data.aspectRatio is string && data.aspectRatio in ['16:9', '9:16'] &&
+             data.language is string && data.language.size() >= 2 && data.language.size() <= 40 &&
+             (!('translatedLanguage' in data) || (data.translatedLanguage is string && data.translatedLanguage.size() <= 40)) &&
+             data.targetDurationSeconds is int && data.targetDurationSeconds >= 30 && data.targetDurationSeconds <= 1200 &&
+             data.voiceGender is string && data.voiceGender in ['FEMALE', 'MALE'] &&
+             data.voiceStyle is string && data.voiceStyle in ['CINEMATIC', 'ENERGETIC', 'CALM', 'AUTHORITATIVE'] &&
+             data.productionMode is string && data.productionMode in ['STANDARD_HYBRID', 'LOW_COST_IMAGE_ONLY'] &&
+             data.status is string && data.status in ['QUEUED', 'RESEARCHING', 'VERIFYING', 'SCRIPTING', 'VOICE_GEN', 'VISUAL_GEN', 'RENDERING', 'THUMBNAIL_GEN', 'COMPLETED', 'FAILED', 'CANCELLED'] &&
+             data.currentStage is string && data.currentStage.size() <= 120 &&
+             data.progressPercent is int && data.progressPercent >= 0 && data.progressPercent <= 100 &&
+             (data.estimatedCostUsd is int || data.estimatedCostUsd is float) &&
+             data.estimatedCostUsd >= 0.0 && data.estimatedCostUsd <= 1000.0 &&
+             (data.actualCostUsd is int || data.actualCostUsd is float) &&
+             data.actualCostUsd >= 0.0 && data.actualCostUsd <= 1000.0 &&
+             (!('researchSummary' in data) || (data.researchSummary is string && data.researchSummary.size() <= 20000)) &&
+             (!('verificationVerdict' in data) || (data.verificationVerdict is string && data.verificationVerdict.size() <= 5000)) &&
+             (!('uncertaintyFlags' in data) || (data.uncertaintyFlags is string && data.uncertaintyFlags.size() <= 5000)) &&
+             (!('scriptIntro' in data) || (data.scriptIntro is string && data.scriptIntro.size() <= 3000)) &&
+             (!('scriptOutro' in data) || (data.scriptOutro is string && data.scriptOutro.size() <= 3000)) &&
+             data.thumbnailStyle is string && data.thumbnailStyle in ['BOLD_CINEMA', 'EDITORIAL_SPLIT', 'NEON_PULSE', 'MINIMAL_DOC'] &&
+             (!('localVideoPath' in data) || (data.localVideoPath is string && data.localVideoPath.size() <= 500)) &&
+             (!('localThumbnailPath' in data) || (data.localThumbnailPath is string && data.localThumbnailPath.size() <= 500)) &&
+             (!('exportedDownloadUri' in data) || (data.exportedDownloadUri is string && data.exportedDownloadUri.size() <= 500)) &&
+             data.videoFileSizeBytes is int && data.videoFileSizeBytes >= 0 &&
+             data.renderedDurationSeconds is int && data.renderedDurationSeconds >= 0 && data.renderedDurationSeconds <= 3600 &&
+             data.sceneCount is int && data.sceneCount >= 0 && data.sceneCount <= 30 &&
+             (!('errorMessage' in data) || (data.errorMessage is string && data.errorMessage.size() <= 2000)) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidVideoScene(data) {
+      return data.userId is string && isValidId(data.userId) &&
+             data.projectId is string && isValidId(data.projectId) &&
+             data.sceneIndex is int && data.sceneIndex >= 0 && data.sceneIndex <= 30 &&
+             data.heading is string && data.heading.size() >= 1 && data.heading.size() <= 150 &&
+             data.narration is string && data.narration.size() >= 1 && data.narration.size() <= 5000 &&
+             (!('translatedNarration' in data) || (data.translatedNarration is string && data.translatedNarration.size() <= 5000)) &&
+             data.visualPrompt is string && data.visualPrompt.size() >= 1 && data.visualPrompt.size() <= 2000 &&
+             data.subtitleText is string && data.subtitleText.size() <= 2000 &&
+             data.durationSeconds is int && data.durationSeconds >= 2 && data.durationSeconds <= 180 &&
+             data.status is string && data.status in ['PLANNED', 'VOICE_READY', 'VISUAL_READY', 'COMPLETED', 'FAILED'] &&
+             (!('localImagePath' in data) || (data.localImagePath is string && data.localImagePath.size() <= 500)) &&
+             (!('localAudioPath' in data) || (data.localAudioPath is string && data.localAudioPath.size() <= 500)) &&
+             (!('errorMessage' in data) || (data.errorMessage is string && data.errorMessage.size() <= 1000)) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidResearchReport(data) {
+      return data.userId is string && isValidId(data.userId) &&
+             data.projectId is string && isValidId(data.projectId) &&
+             data.topic is string && data.topic.size() >= 3 && data.topic.size() <= 500 &&
+             data.summary is string && data.summary.size() >= 1 && data.summary.size() <= 20000 &&
+             data.verificationNotes is string && data.verificationNotes.size() <= 10000 &&
+             (!('conflictingInfo' in data) || (data.conflictingInfo is string && data.conflictingInfo.size() <= 5000)) &&
+             data.sources is list && data.sources.size() <= 15 &&
+             (data.sources.size() == 0 || data.sources[0] is map) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidUsageLog(data) {
+      return data.userId is string && isValidId(data.userId) &&
+             data.projectId is string && isValidId(data.projectId) &&
+             data.projectTitle is string && data.projectTitle.size() >= 1 && data.projectTitle.size() <= 200 &&
+             data.stage is string && data.stage.size() >= 1 && data.stage.size() <= 80 &&
+             data.modelName is string && data.modelName.size() >= 1 && data.modelName.size() <= 80 &&
+             data.estimatedTokens is int && data.estimatedTokens >= 0 && data.estimatedTokens <= 10000000 &&
+             (data.costUsd is int || data.costUsd is float) &&
+             data.costUsd >= 0.0 && data.costUsd <= 1000.0 &&
+             data.status is string && data.status in ['SUCCESS', 'FAILED'] &&
+             (!('errorMessage' in data) || (data.errorMessage is string && data.errorMessage.size() <= 2000)) &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidContentReport(data) {
+      return data.userId is string && isValidId(data.userId) &&
+             data.projectId is string && isValidId(data.projectId) &&
+             data.topic is string && data.topic.size() >= 1 && data.topic.size() <= 500 &&
+             data.reason is string && data.reason.size() >= 3 && data.reason.size() <= 1000 &&
+             data.status is string && data.status in ['OPEN', 'RESOLVED', 'DISMISSED'] &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidAppConfig(data) {
+      return data.maxDurationSeconds is int && data.maxDurationSeconds >= 30 && data.maxDurationSeconds <= 1200 &&
+             (data.defaultSpendingLimitUsd is int || data.defaultSpendingLimitUsd is float) &&
+             data.defaultSpendingLimitUsd >= 0.5 && data.defaultSpendingLimitUsd <= 1000.0 &&
+             data.searchGroundingEnabled is bool &&
+             data.nanoBananaEnabled is bool &&
+             data.geminiTtsEnabled is bool &&
+             data.veoServerAdapterEnabled is bool &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    // --- COLLECTIONS ---
+
+    match /admins/{adminId} {
+      allow get: if isSignedIn() && request.auth.uid == adminId;
+      allow list, write: if false;
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId || isAdmin());
+      allow list: if isAdmin();
+
+      allow create: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       incoming().userId == userId &&
+                       incoming().keys().hasAll([
+                         'userId', 'displayName', 'email', 'spendingLimitUsd', 'totalSpentUsd',
+                         'totalVideosCreated', 'defaultAspectRatio', 'defaultLanguage',
+                         'preferLowCostImageMode', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'displayName', 'email', 'photoUrl', 'spendingLimitUsd', 'totalSpentUsd',
+                         'totalVideosCreated', 'defaultAspectRatio', 'defaultLanguage',
+                         'preferLowCostImageMode', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidUserProfile(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(userId) &&
+                       isValidUserProfile(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       (
+                         isAdmin() ||
+                         (
+                           request.auth.uid == userId &&
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'displayName', 'photoUrl', 'spendingLimitUsd', 'totalSpentUsd',
+                             'totalVideosCreated', 'defaultAspectRatio', 'defaultLanguage',
+                             'preferLowCostImageMode', 'updatedAt'
+                           ])
+                         )
+                       );
+
+      allow delete: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId || isAdmin());
+    }
+
+    match /projects/{projectId} {
+      allow get: if isSignedIn() && isValidId(projectId) && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+
+      allow create: if isSignedIn() &&
+                       isValidId(projectId) &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll([
+                         'userId', 'jobId', 'title', 'topic', 'format', 'aspectRatio', 'language',
+                         'targetDurationSeconds', 'voiceGender', 'voiceStyle', 'productionMode',
+                         'status', 'currentStage', 'progressPercent', 'estimatedCostUsd',
+                         'actualCostUsd', 'thumbnailStyle', 'videoFileSizeBytes',
+                         'renderedDurationSeconds', 'sceneCount', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'jobId', 'title', 'topic', 'format', 'aspectRatio', 'language',
+                         'translatedLanguage', 'targetDurationSeconds', 'voiceGender', 'voiceStyle',
+                         'productionMode', 'status', 'currentStage', 'progressPercent',
+                         'estimatedCostUsd', 'actualCostUsd', 'researchSummary',
+                         'verificationVerdict', 'uncertaintyFlags', 'scriptIntro', 'scriptOutro',
+                         'thumbnailStyle', 'localVideoPath', 'localThumbnailPath',
+                         'exportedDownloadUri', 'videoFileSizeBytes', 'renderedDurationSeconds',
+                         'sceneCount', 'errorMessage', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidVideoProject(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(projectId) &&
+                       isValidVideoProject(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       (
+                         isAdmin() ||
+                         (
+                           existing().userId == request.auth.uid &&
+                           (
+                             (
+                               existing().status != 'COMPLETED' &&
+                               incoming().diff(existing()).affectedKeys().hasOnly([
+                                 'title', 'status', 'currentStage', 'progressPercent', 'actualCostUsd',
+                                 'researchSummary', 'verificationVerdict', 'uncertaintyFlags',
+                                 'scriptIntro', 'scriptOutro', 'thumbnailStyle', 'localVideoPath',
+                                 'localThumbnailPath', 'exportedDownloadUri', 'videoFileSizeBytes',
+                                 'renderedDurationSeconds', 'sceneCount', 'errorMessage', 'updatedAt'
+                               ])
+                             ) ||
+                             (
+                               existing().status == 'COMPLETED' &&
+                               incoming().diff(existing()).affectedKeys().hasOnly([
+                                 'thumbnailStyle', 'localThumbnailPath', 'exportedDownloadUri', 'updatedAt'
+                               ])
+                             )
+                           )
+                         )
+                       );
+
+      allow delete: if isSignedIn() && isValidId(projectId) && (existing().userId == request.auth.uid || isAdmin());
+
+      match /scenes/{sceneId} {
+        allow get: if isSignedIn() && isValidId(projectId) && isValidId(sceneId) && (existing().userId == request.auth.uid || isAdmin());
+        allow list: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+
+        allow create: if isSignedIn() &&
+                         isValidId(projectId) &&
+                         isValidId(sceneId) &&
+                         incoming().userId == request.auth.uid &&
+                         incoming().projectId == projectId &&
+                         incoming().keys().hasAll([
+                           'userId', 'projectId', 'sceneIndex', 'heading', 'narration',
+                           'visualPrompt', 'subtitleText', 'durationSeconds', 'status',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'projectId', 'sceneIndex', 'heading', 'narration',
+                           'translatedNarration', 'visualPrompt', 'subtitleText', 'durationSeconds',
+                           'status', 'localImagePath', 'localAudioPath', 'errorMessage',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidVideoScene(incoming()) &&
+                         exists(/databases/$(database)/documents/projects/$(projectId)) &&
+                         get(/databases/$(database)/documents/projects/$(projectId)).data.userId == request.auth.uid;
+
+        allow update: if isSignedIn() &&
+                         isValidId(projectId) &&
+                         isValidId(sceneId) &&
+                         isValidVideoScene(incoming()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().projectId == existing().projectId &&
+                         incoming().createdAt == existing().createdAt &&
+                         (
+                           isAdmin() ||
+                           (
+                             existing().userId == request.auth.uid &&
+                             incoming().diff(existing()).affectedKeys().hasOnly([
+                               'heading', 'narration', 'translatedNarration', 'visualPrompt',
+                               'subtitleText', 'durationSeconds', 'status', 'localImagePath',
+                               'localAudioPath', 'errorMessage', 'updatedAt'
+                             ])
+                           )
+                         );
+
+        allow delete: if isSignedIn() && isValidId(projectId) && isValidId(sceneId) && (existing().userId == request.auth.uid || isAdmin());
+      }
+    }
+
+    match /research_reports/{reportId} {
+      allow get: if isSignedIn() && isValidId(reportId) && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+
+      allow create: if isSignedIn() &&
+                       isValidId(reportId) &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll([
+                         'userId', 'projectId', 'topic', 'summary', 'verificationNotes',
+                         'sources', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'projectId', 'topic', 'summary', 'verificationNotes',
+                         'conflictingInfo', 'sources', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidResearchReport(incoming()) &&
+                       exists(/databases/$(database)/documents/projects/$(incoming().projectId)) &&
+                       get(/databases/$(database)/documents/projects/$(incoming().projectId)).data.userId == request.auth.uid;
+
+      allow update: if isSignedIn() &&
+                       isValidId(reportId) &&
+                       isValidResearchReport(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().projectId == existing().projectId &&
+                       incoming().createdAt == existing().createdAt &&
+                       (
+                         isAdmin() ||
+                         (
+                           existing().userId == request.auth.uid &&
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'summary', 'verificationNotes', 'conflictingInfo', 'sources', 'updatedAt'
+                           ])
+                         )
+                       );
+
+      allow delete: if isSignedIn() && isValidId(reportId) && (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    match /usage_logs/{logId} {
+      allow get: if isSignedIn() && isValidId(logId) && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+
+      allow create: if isSignedIn() &&
+                       isValidId(logId) &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll([
+                         'userId', 'projectId', 'projectTitle', 'stage', 'modelName',
+                         'estimatedTokens', 'costUsd', 'status', 'createdAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'projectId', 'projectTitle', 'stage', 'modelName',
+                         'estimatedTokens', 'costUsd', 'status', 'errorMessage', 'createdAt'
+                       ]) &&
+                       isValidUsageLog(incoming());
+
+      allow update: if false;
+      allow delete: if isSignedIn() && isValidId(logId) && (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    match /content_reports/{reportId} {
+      allow get: if isSignedIn() && isValidId(reportId) && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+
+      allow create: if isSignedIn() &&
+                       isValidId(reportId) &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().status == 'OPEN' &&
+                       incoming().keys().hasAll([
+                         'userId', 'projectId', 'topic', 'reason', 'status', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'projectId', 'topic', 'reason', 'status', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidContentReport(incoming());
+
+      allow update: if isAdmin() &&
+                       isValidId(reportId) &&
+                       isValidContentReport(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().projectId == existing().projectId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']);
+
+      allow delete: if isAdmin();
+    }
+
+    match /app_config/{configId} {
+      allow get, list: if isSignedIn();
+      allow create, update: if isAdmin() &&
+                               isValidId(configId) &&
+                               incoming().keys().hasAll([
+                                 'maxDurationSeconds', 'defaultSpendingLimitUsd',
+                                 'searchGroundingEnabled', 'nanoBananaEnabled',
+                                 'geminiTtsEnabled', 'veoServerAdapterEnabled', 'updatedAt'
+                               ]) &&
+                               incoming().keys().hasOnly([
+                                 'maxDurationSeconds', 'defaultSpendingLimitUsd',
+                                 'searchGroundingEnabled', 'nanoBananaEnabled',
+                                 'geminiTtsEnabled', 'veoServerAdapterEnabled', 'updatedAt'
+                               ]) &&
+                               isValidAppConfig(incoming());
+      allow delete: if isAdmin();
+    }
+  }
+}

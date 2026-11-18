@@ -1,0 +1,259 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated creator profile, spending limits, cumulative usage, and studio defaults.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID matching document ID." },
+        "displayName": { "type": "string", "description": "User display name." },
+        "email": { "type": "string", "description": "User email address." },
+        "photoUrl": { "type": "string", "description": "Optional Google profile photo URL." },
+        "spendingLimitUsd": { "type": "number", "description": "User-configured maximum AI production budget in USD." },
+        "totalSpentUsd": { "type": "number", "description": "Cumulative AI generation cost in USD." },
+        "totalVideosCreated": { "type": "integer", "description": "Count of completed videos." },
+        "defaultAspectRatio": { "type": "string", "enum": ["16:9", "9:16"], "description": "Preferred video aspect ratio." },
+        "defaultLanguage": { "type": "string", "description": "Preferred narration language." },
+        "preferLowCostImageMode": { "type": "boolean", "description": "Default toggle for lower-cost image-based production." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp on update." }
+      },
+      "required": [
+        "userId",
+        "displayName",
+        "email",
+        "spendingLimitUsd",
+        "totalSpentUsd",
+        "totalVideosCreated",
+        "defaultAspectRatio",
+        "defaultLanguage",
+        "preferLowCostImageMode",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "VideoProject": {
+      "title": "VideoProject",
+      "description": "End-to-end AI video production project, pipeline progress, cost tracking, and MP4 export metadata.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Firebase Auth UID." },
+        "jobId": { "type": "string", "description": "Unique background pipeline job identifier." },
+        "title": { "type": "string", "description": "Generated or user-provided project title." },
+        "topic": { "type": "string", "description": "Topic or idea entered by the user." },
+        "format": { "type": "string", "enum": ["DOCUMENTARY", "EDUCATIONAL", "EXPLAINER", "STORYTELLING"] },
+        "aspectRatio": { "type": "string", "enum": ["16:9", "9:16"] },
+        "language": { "type": "string" },
+        "translatedLanguage": { "type": "string" },
+        "targetDurationSeconds": { "type": "integer" },
+        "voiceGender": { "type": "string", "enum": ["FEMALE", "MALE"] },
+        "voiceStyle": { "type": "string", "enum": ["CINEMATIC", "ENERGETIC", "CALM", "AUTHORITATIVE"] },
+        "productionMode": { "type": "string", "enum": ["STANDARD_HYBRID", "LOW_COST_IMAGE_ONLY"] },
+        "status": {
+          "type": "string",
+          "enum": ["QUEUED", "RESEARCHING", "VERIFYING", "SCRIPTING", "VOICE_GEN", "VISUAL_GEN", "RENDERING", "THUMBNAIL_GEN", "COMPLETED", "FAILED", "CANCELLED"]
+        },
+        "currentStage": { "type": "string" },
+        "progressPercent": { "type": "integer" },
+        "estimatedCostUsd": { "type": "number" },
+        "actualCostUsd": { "type": "number" },
+        "researchSummary": { "type": "string" },
+        "verificationVerdict": { "type": "string" },
+        "uncertaintyFlags": { "type": "string" },
+        "scriptIntro": { "type": "string" },
+        "scriptOutro": { "type": "string" },
+        "thumbnailStyle": { "type": "string", "enum": ["BOLD_CINEMA", "EDITORIAL_SPLIT", "NEON_PULSE", "MINIMAL_DOC"] },
+        "localVideoPath": { "type": "string" },
+        "localThumbnailPath": { "type": "string" },
+        "exportedDownloadUri": { "type": "string" },
+        "videoFileSizeBytes": { "type": "integer" },
+        "renderedDurationSeconds": { "type": "integer" },
+        "sceneCount": { "type": "integer" },
+        "errorMessage": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId",
+        "jobId",
+        "title",
+        "topic",
+        "format",
+        "aspectRatio",
+        "language",
+        "targetDurationSeconds",
+        "voiceGender",
+        "voiceStyle",
+        "productionMode",
+        "status",
+        "currentStage",
+        "progressPercent",
+        "estimatedCostUsd",
+        "actualCostUsd",
+        "thumbnailStyle",
+        "videoFileSizeBytes",
+        "renderedDurationSeconds",
+        "sceneCount",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "VideoScene": {
+      "title": "VideoScene",
+      "description": "Individual scene within a VideoProject with narration, visual prompt, subtitle, and rendered asset paths.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "projectId": { "type": "string" },
+        "sceneIndex": { "type": "integer" },
+        "heading": { "type": "string" },
+        "narration": { "type": "string" },
+        "translatedNarration": { "type": "string" },
+        "visualPrompt": { "type": "string" },
+        "subtitleText": { "type": "string" },
+        "durationSeconds": { "type": "integer" },
+        "status": { "type": "string", "enum": ["PLANNED", "VOICE_READY", "VISUAL_READY", "COMPLETED", "FAILED"] },
+        "localImagePath": { "type": "string" },
+        "localAudioPath": { "type": "string" },
+        "errorMessage": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId",
+        "projectId",
+        "sceneIndex",
+        "heading",
+        "narration",
+        "visualPrompt",
+        "subtitleText",
+        "durationSeconds",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ResearchReport": {
+      "title": "ResearchReport",
+      "description": "Grounded topic research summary, fact verification notes, uncertainty flags, and verified source citations.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "projectId": { "type": "string" },
+        "topic": { "type": "string" },
+        "summary": { "type": "string" },
+        "verificationNotes": { "type": "string" },
+        "conflictingInfo": { "type": "string" },
+        "sources": { "type": "array", "description": "Bounded list (max 15) of verified source objects." },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId",
+        "projectId",
+        "topic",
+        "summary",
+        "verificationNotes",
+        "sources",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "UsageLog": {
+      "title": "UsageLog",
+      "description": "API usage, token estimate, cost, and error telemetry entry.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "projectId": { "type": "string" },
+        "projectTitle": { "type": "string" },
+        "stage": { "type": "string" },
+        "modelName": { "type": "string" },
+        "estimatedTokens": { "type": "integer" },
+        "costUsd": { "type": "number" },
+        "status": { "type": "string", "enum": ["SUCCESS", "FAILED"] },
+        "errorMessage": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId",
+        "projectId",
+        "projectTitle",
+        "stage",
+        "modelName",
+        "estimatedTokens",
+        "costUsd",
+        "status",
+        "createdAt"
+      ]
+    },
+    "ContentReport": {
+      "title": "ContentReport",
+      "description": "Safety/content moderation flag submitted for admin review.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "projectId": { "type": "string" },
+        "topic": { "type": "string" },
+        "reason": { "type": "string" },
+        "status": { "type": "string", "enum": ["OPEN", "RESOLVED", "DISMISSED"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "projectId", "topic", "reason", "status", "createdAt", "updatedAt"]
+    },
+    "AppConfig": {
+      "title": "AppConfig",
+      "description": "Admin-managed provider toggles and platform generation limits.",
+      "type": "object",
+      "properties": {
+        "maxDurationSeconds": { "type": "integer" },
+        "defaultSpendingLimitUsd": { "type": "number" },
+        "searchGroundingEnabled": { "type": "boolean" },
+        "nanoBananaEnabled": { "type": "boolean" },
+        "geminiTtsEnabled": { "type": "boolean" },
+        "veoServerAdapterEnabled": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "maxDurationSeconds",
+        "defaultSpendingLimitUsd",
+        "searchGroundingEnabled",
+        "nanoBananaEnabled",
+        "geminiTtsEnabled",
+        "veoServerAdapterEnabled",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profiles, spending limits, and studio preferences."
+    },
+    "/projects/{projectId}": {
+      "schema": { "$ref": "#/entities/VideoProject" },
+      "description": "User video production projects and pipeline status."
+    },
+    "/projects/{projectId}/scenes/{sceneId}": {
+      "schema": { "$ref": "#/entities/VideoScene" },
+      "description": "Scenes belonging to a video project."
+    },
+    "/research_reports/{reportId}": {
+      "schema": { "$ref": "#/entities/ResearchReport" },
+      "description": "Grounded research summaries and verified citations."
+    },
+    "/usage_logs/{logId}": {
+      "schema": { "$ref": "#/entities/UsageLog" },
+      "description": "AI usage, cost, and error telemetry logs."
+    },
+    "/content_reports/{reportId}": {
+      "schema": { "$ref": "#/entities/ContentReport" },
+      "description": "Content moderation reports."
+    },
+    "/app_config/{configId}": {
+      "schema": { "$ref": "#/entities/AppConfig" },
+      "description": "Platform provider and generation limit settings."
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Sarvcut",
+  "description": "AI automatic video production studio: topic research, verification, scriptwriting, scene visuals, AI voiceover, and MP4 export.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
